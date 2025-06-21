@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Database related
+/drizzle/*.sql
+/drizzle/meta/
+drizzle-kit.config.*
+.env.local
+.env.*.local
+
+# SQLite files
+tekken-babes.db*

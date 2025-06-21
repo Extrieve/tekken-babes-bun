@@ -1,83 +1,35 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { characterService } from "../services/dataService";
+import type { Character } from "../types/database";
 import "./Leaderboard.css";
-
-// This would normally come from a shared state management solution
-const initialCharacters = [
-  {
-    id: 1,
-    name: "Nina Williams",
-    image: "https://via.placeholder.com/150x200/ff6b9d/fff?text=Nina",
-    wins: 23,
-    votes: 45,
-    matches: 67,
-  },
-  {
-    id: 2,
-    name: "Anna Williams",
-    image: "https://via.placeholder.com/150x200/c471ed/fff?text=Anna",
-    wins: 19,
-    votes: 38,
-    matches: 52,
-  },
-  {
-    id: 3,
-    name: "Xiaoyu",
-    image: "https://via.placeholder.com/150x200/12c2e9/fff?text=Xiaoyu",
-    wins: 31,
-    votes: 56,
-    matches: 78,
-  },
-  {
-    id: 4,
-    name: "Asuka",
-    image: "https://via.placeholder.com/150x200/ff9a9e/fff?text=Asuka",
-    wins: 15,
-    votes: 29,
-    matches: 41,
-  },
-  {
-    id: 5,
-    name: "Lili",
-    image: "https://via.placeholder.com/150x200/fecfef/fff?text=Lili",
-    wins: 28,
-    votes: 51,
-    matches: 69,
-  },
-  {
-    id: 6,
-    name: "Alisa",
-    image: "https://via.placeholder.com/150x200/a8edea/fff?text=Alisa",
-    wins: 22,
-    votes: 41,
-    matches: 58,
-  },
-  {
-    id: 7,
-    name: "Christie",
-    image: "https://via.placeholder.com/150x200/fed6e3/fff?text=Christie",
-    wins: 17,
-    votes: 33,
-    matches: 48,
-  },
-  {
-    id: 8,
-    name: "Zafina",
-    image: "https://via.placeholder.com/150x200/ffeb3b/fff?text=Zafina",
-    wins: 26,
-    votes: 49,
-    matches: 63,
-  },
-];
 
 type SortType = "wins" | "votes" | "winrate";
 
 const Leaderboard: React.FC = () => {
-  const [characters] = useState(initialCharacters);
+  const [characters, setCharacters] = useState<Character[]>([]);
   const [sortBy, setSortBy] = useState<SortType>("wins");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const calculateWinRate = (wins: number, matches: number) => {
-    return matches > 0 ? ((wins / matches) * 100).toFixed(1) : "0.0";
+  // Load characters from the data service
+  const loadCharacters = async () => {
+    try {
+      setIsLoading(true);
+      const leaderboard = await characterService.getLeaderboard();
+      setCharacters(leaderboard);
+    } catch (error) {
+      console.error("Error loading leaderboard:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCharacters();
+  }, []);
+
+  const calculateWinRate = (wins: number, battles: number) => {
+    return battles > 0 ? ((wins / battles) * 100).toFixed(1) : "0.0";
   };
 
   const sortedCharacters = [...characters].sort((a, b) => {
@@ -87,8 +39,8 @@ const Leaderboard: React.FC = () => {
       case "votes":
         return b.votes - a.votes;
       case "winrate": {
-        const aWinRate = parseFloat(calculateWinRate(a.wins, a.matches));
-        const bWinRate = parseFloat(calculateWinRate(b.wins, b.matches));
+        const aWinRate = parseFloat(calculateWinRate(a.wins, a.battles));
+        const bWinRate = parseFloat(calculateWinRate(b.wins, b.battles));
         return bWinRate - aWinRate;
       }
       default:
@@ -122,6 +74,22 @@ const Leaderboard: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="leaderboard-container">
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "50vh",
+            transform: "translateY(-50%)",
+          }}
+        >
+          <h2>Loading leaderboard...</h2>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="leaderboard-container">
       <div className="leaderboard-header">
@@ -137,10 +105,10 @@ const Leaderboard: React.FC = () => {
             {characters.reduce((sum, char) => sum + char.votes, 0)}
           </span>
           <span className="summary-label">Total Votes</span>
-        </div>
+        </div>{" "}
         <div className="summary-card">
           <span className="summary-number">
-            {characters.reduce((sum, char) => sum + char.matches, 0)}
+            {characters.reduce((sum, char) => sum + char.battles, 0)}
           </span>
           <span className="summary-label">Total Battles</span>
         </div>
@@ -176,7 +144,8 @@ const Leaderboard: React.FC = () => {
 
       <div className="leaderboard-grid">
         {sortedCharacters.map((character, index) => (
-          <div
+          <Link
+            to={`/character/${character.id}`}
             key={character.id}
             className={`character-rank-card ${index < 3 ? "top-three" : ""}`}
             style={
@@ -189,8 +158,9 @@ const Leaderboard: React.FC = () => {
             </div>
 
             <div className="character-avatar">
+              {" "}
               <img
-                src={character.image}
+                src={character.imageUrl}
                 alt={character.name}
                 className="avatar-image"
               />
@@ -204,23 +174,20 @@ const Leaderboard: React.FC = () => {
                 <span className="stat-value">{character.wins}</span>
                 <span className="stat-label">Wins</span>
               </div>
-
               <div className="stat-item">
                 <span className="stat-icon">💝</span>
                 <span className="stat-value">{character.votes}</span>
                 <span className="stat-label">Votes</span>
-              </div>
-
+              </div>{" "}
               <div className="stat-item">
                 <span className="stat-icon">⚔️</span>
-                <span className="stat-value">{character.matches}</span>
+                <span className="stat-value">{character.battles}</span>
                 <span className="stat-label">Battles</span>
               </div>
-
               <div className="stat-item">
                 <span className="stat-icon">📊</span>
                 <span className="stat-value">
-                  {calculateWinRate(character.wins, character.matches)}%
+                  {calculateWinRate(character.wins, character.battles)}%
                 </span>
                 <span className="stat-label">Win Rate</span>
               </div>
@@ -237,7 +204,7 @@ const Leaderboard: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
+          </Link>
         ))}
       </div>
 
