@@ -62,7 +62,7 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 2rem;
-  align-items: center;
+  align-items: start; /* Changed from center to start to prevent repositioning */
   max-width: 1200px;
   margin: 0 auto;
   position: relative;
@@ -71,13 +71,20 @@
 .character-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
-  padding: 2rem;
+  padding: 2rem 2rem 2rem 2rem; /* Restored equal padding for better balance */
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
   color: #333;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  min-height: 450px; /* Consistent height to prevent jumps */
+  min-height: 480px; /* Increased for consistent height */
+  max-height: 480px; /* Set max height to prevent expansion */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* This will distribute content properly */
+  position: relative;
+  will-change: transform, box-shadow; /* Optimize for GPU rendering */
+  backface-visibility: hidden; /* Prevent flicker during transitions */
 }
 
 .character-card:hover {
@@ -95,31 +102,58 @@
 
 .character-image-container {
   margin-bottom: 1.5rem;
+  height: 300px; /* Reduced slightly to balance with other elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Don't shrink this section */
 }
 
 .character-image {
   width: 100%;
   max-width: 250px;
-  height: 300px;
+  height: 280px; /* Reduced to fit in smaller container */
   object-fit: cover;
   border-radius: 15px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   transition: opacity 0.2s ease-in-out;
+  background: rgba(
+    102,
+    126,
+    234,
+    0.1
+  ); /* Placeholder background while loading */
+  will-change: opacity; /* Optimize opacity transitions */
 }
 
 .character-name {
   font-size: 1.8rem;
   font-weight: bold;
-  margin-bottom: 1rem;
+  margin-bottom: 0; /* Remove bottom margin to control spacing precisely */
   color: #333;
   transition: opacity 0.2s ease-in-out;
+  min-height: 2.5rem; /* Reduced back to original for better balance */
+  max-height: 4rem; /* Set a max height to prevent excessive expansion */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible; /* Changed from hidden to show full text */
+  text-align: center;
+  line-height: 1.2; /* Better line spacing */
+  word-wrap: break-word; /* Allow text wrapping if needed */
+  flex-shrink: 0; /* Don't shrink this section */
 }
 
-.character-stats {
-  display: flex;
+.battle-container .character-stats {
+  display: flex !important; /* Override any conflicting grid rules */
   justify-content: space-around;
   gap: 1rem;
   transition: opacity 0.2s ease-in-out;
+  height: 3rem; /* Fixed height for stats container */
+  align-items: center;
+  margin-top: auto; /* Push stats to bottom */
+  margin-bottom: 1rem; /* Ensure proper spacing from card bottom */
+  padding-bottom: 0.5rem; /* Additional breathing room */
 }
 
 .stat {
@@ -134,6 +168,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 480px; /* Match character card height */
 }
 
 .vs-text {
