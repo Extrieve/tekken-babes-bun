@@ -76,19 +76,26 @@ const Battle: React.FC = () => {
   const [currentWinner, setCurrentWinner] = useState<
     (typeof tekkenCharacters)[0] | null
   >(null);
+  const [winnerPosition, setWinnerPosition] = useState<"left" | "right" | null>(
+    null
+  );
   const [winStreak, setWinStreak] = useState(0);
   const [showVictory, setShowVictory] = useState(false);
   const [battleStats, setBattleStats] = useState(tekkenCharacters);
-
   const getRandomCharacter = (exclude: number[]) => {
-    const available = battleStats.filter((char) => !exclude.includes(char.id));
+    const available = tekkenCharacters.filter(
+      (char) => !exclude.includes(char.id)
+    );
     return available[Math.floor(Math.random() * available.length)];
   };
-
   const handleVote = (
     winner: (typeof tekkenCharacters)[0],
     loser: (typeof tekkenCharacters)[0]
   ) => {
+    // Determine winner's current position
+    const isWinnerOnLeft = winner.id === leftCharacter.id;
+    const newWinnerPosition = isWinnerOnLeft ? "left" : "right";
+
     // Update stats
     const newStats = battleStats.map((char) => {
       if (char.id === winner.id) {
@@ -104,51 +111,80 @@ const Battle: React.FC = () => {
       }
       return char;
     });
-    setBattleStats(newStats);
 
-    if (currentWinner?.id === winner.id) {
-      const newStreak = winStreak + 1;
-      setWinStreak(newStreak);
-
-      if (newStreak >= 5) {
-        setShowVictory(true);
-        return;
-      }
+    // Check if this is the same winner in the same position as before
+    let newStreak: number;
+    if (
+      currentWinner?.id === winner.id &&
+      winnerPosition === newWinnerPosition
+    ) {
+      newStreak = winStreak + 1;
     } else {
-      setWinStreak(1);
-      setCurrentWinner(winner);
+      newStreak = 1;
     }
 
-    // Set up next battle
-    const newOpponent = getRandomCharacter([winner.id]);
-    if (winner.id === leftCharacter.id) {
+    // Check for victory
+    if (newStreak >= 5) {
+      setBattleStats(newStats);
+      setWinStreak(newStreak);
+      setCurrentWinner(winner);
+      setWinnerPosition(newWinnerPosition);
+      setShowVictory(true);
+      return;
+    }
+
+    // Get a completely new character that's not currently on screen
+    const newOpponent = getRandomCharacter([
+      leftCharacter.id,
+      rightCharacter.id,
+    ]);
+
+    // Batch all state updates to minimize re-renders
+    setBattleStats(newStats);
+    setWinStreak(newStreak);
+    setCurrentWinner(winner);
+    setWinnerPosition(newWinnerPosition);
+
+    // Update only the opponent's position - winner stays in same place
+    if (isWinnerOnLeft) {
+      // Winner stays on left, new opponent goes to right
       setRightCharacter(newOpponent);
     } else {
+      // Winner stays on right, new opponent goes to left
       setLeftCharacter(newOpponent);
     }
   };
-
   const resetBattle = () => {
     setShowVictory(false);
     setWinStreak(0);
     setCurrentWinner(null);
-    setLeftCharacter(getRandomCharacter([]));
-    setRightCharacter(getRandomCharacter([leftCharacter.id]));
-  };
-  useEffect(() => {
-    // Initialize with random characters
-    const getRandomChar = (exclude: number[]) => {
-      const available = battleStats.filter(
-        (char) => !exclude.includes(char.id)
-      );
-      return available[Math.floor(Math.random() * available.length)];
-    };
+    setWinnerPosition(null);
 
-    const char1 = getRandomChar([]);
-    const char2 = getRandomChar([char1.id]);
+    // Get two different random characters
+    const char1 =
+      tekkenCharacters[Math.floor(Math.random() * tekkenCharacters.length)];
+    const availableForChar2 = tekkenCharacters.filter(
+      (char) => char.id !== char1.id
+    );
+    const char2 =
+      availableForChar2[Math.floor(Math.random() * availableForChar2.length)];
+
     setLeftCharacter(char1);
     setRightCharacter(char2);
-  }, [battleStats]);
+  };
+  useEffect(() => {
+    // Initialize with random characters ONLY on component mount
+    const char1 =
+      tekkenCharacters[Math.floor(Math.random() * tekkenCharacters.length)];
+    const availableForChar2 = tekkenCharacters.filter(
+      (char) => char.id !== char1.id
+    );
+    const char2 =
+      availableForChar2[Math.floor(Math.random() * availableForChar2.length)];
+
+    setLeftCharacter(char1);
+    setRightCharacter(char2);
+  }, []); // Empty dependency array - only run once on mount
 
   if (showVictory && currentWinner) {
     return (
@@ -186,11 +222,11 @@ const Battle: React.FC = () => {
         <Link to="/" className="back-btn">
           ← Back to Home
         </Link>
-        <h1 className="battle-title">⚔️ BATTLE ARENA ⚔️</h1>
+        <h1 className="battle-title">⚔️ BATTLE ARENA ⚔️</h1>{" "}
         <div className="streak-counter">
-          {currentWinner && (
+          {currentWinner && winStreak > 0 && (
             <span className="streak-info">
-              🔥 {currentWinner.name}: {winStreak} wins
+              🔥 {currentWinner.name}: {winStreak}/5 wins
             </span>
           )}
         </div>
@@ -201,10 +237,16 @@ const Battle: React.FC = () => {
       </div>
 
       <div className="battle-arena">
+        {" "}
         <div
-          className="character-card left-character"
+          className={`character-card left-character ${
+            currentWinner?.id === leftCharacter.id ? "winning-streak" : ""
+          }`}
           onClick={() => handleVote(leftCharacter, rightCharacter)}
         >
+          {currentWinner?.id === leftCharacter.id && winStreak > 0 && (
+            <div className="streak-badge">🔥 {winStreak}/5</div>
+          )}
           <div className="character-image-container">
             <img
               src={leftCharacter.image}
@@ -223,15 +265,18 @@ const Battle: React.FC = () => {
             </span>
           </div>
         </div>
-
         <div className="vs-divider">
           <span className="vs-text">VS</span>
-        </div>
-
+        </div>{" "}
         <div
-          className="character-card right-character"
+          className={`character-card right-character ${
+            currentWinner?.id === rightCharacter.id ? "winning-streak" : ""
+          }`}
           onClick={() => handleVote(rightCharacter, leftCharacter)}
         >
+          {currentWinner?.id === rightCharacter.id && winStreak > 0 && (
+            <div className="streak-badge">🔥 {winStreak}/5</div>
+          )}
           <div className="character-image-container">
             <img
               src={rightCharacter.image}
