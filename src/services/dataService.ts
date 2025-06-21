@@ -253,16 +253,20 @@ let nextStreakId = 1;
 export const characterService = {
   // Get all characters
   getAllCharacters: async (): Promise<Character[]> => {
+    // Simulate a small delay to make it async
+    await new Promise(resolve => setTimeout(resolve, 1));
     return characters.filter((char) => char.isActive);
   },
 
   // Get character by ID
   getCharacterById: async (id: number): Promise<Character | null> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     return characters.find((char) => char.id === id && char.isActive) || null;
   },
 
   // Get random characters for battle
   getRandomCharacters: async (count: number = 2): Promise<Character[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     const activeCharacters = characters.filter((char) => char.isActive);
     const shuffled = [...activeCharacters].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, count);
@@ -273,6 +277,7 @@ export const characterService = {
     id: number,
     updates: Partial<Pick<Character, "votes" | "wins" | "battles" | "winRate">>
   ): Promise<Character | null> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     const charIndex = characters.findIndex((char) => char.id === id);
     if (charIndex === -1) return null;
 
@@ -289,6 +294,7 @@ export const characterService = {
 
   // Get leaderboard (sorted by wins, then by win rate)
   getLeaderboard: async (): Promise<Character[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     return characters
       .filter((char) => char.isActive)
       .sort((a, b) => {
@@ -306,6 +312,8 @@ export const battleService = {
     character2Id: number,
     winnerId: number
   ): Promise<Battle> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
+    
     const battle: Battle = {
       id: nextBattleId++,
       character1Id,
@@ -317,23 +325,27 @@ export const battleService = {
     battles.push(battle);
 
     // Update character stats
-    const char1 = await characterService.getCharacterById(character1Id);
-    const char2 = await characterService.getCharacterById(character2Id);
+    try {
+      const char1 = await characterService.getCharacterById(character1Id);
+      const char2 = await characterService.getCharacterById(character2Id);
 
-    if (char1) {
-      await characterService.updateCharacterStats(character1Id, {
-        battles: char1.battles + 1,
-        wins: winnerId === character1Id ? char1.wins + 1 : char1.wins,
-        votes: char1.votes + (winnerId === character1Id ? 1 : 0),
-      });
-    }
+      if (char1) {
+        await characterService.updateCharacterStats(character1Id, {
+          battles: char1.battles + 1,
+          wins: winnerId === character1Id ? char1.wins + 1 : char1.wins,
+          votes: char1.votes + (winnerId === character1Id ? 1 : 0),
+        });
+      }
 
-    if (char2) {
-      await characterService.updateCharacterStats(character2Id, {
-        battles: char2.battles + 1,
-        wins: winnerId === character2Id ? char2.wins + 1 : char2.wins,
-        votes: char2.votes + (winnerId === character2Id ? 1 : 0),
-      });
+      if (char2) {
+        await characterService.updateCharacterStats(character2Id, {
+          battles: char2.battles + 1,
+          wins: winnerId === character2Id ? char2.wins + 1 : char2.wins,
+          votes: char2.votes + (winnerId === character2Id ? 1 : 0),
+        });
+      }
+    } catch (error) {
+      console.warn('Error updating character stats in recordBattle:', error);
     }
 
     return battle;
@@ -341,6 +353,7 @@ export const battleService = {
 
   // Get battle history
   getBattleHistory: async (limit?: number): Promise<Battle[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     const sorted = battles.sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -353,6 +366,7 @@ export const battleService = {
 export const streakService = {
   // Get current streak for character
   getCurrentStreak: async (characterId: number): Promise<Streak | null> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     return (
       streaks.find(
         (streak) => streak.characterId === characterId && streak.isActive
@@ -362,41 +376,56 @@ export const streakService = {
 
   // Update or create streak
   updateStreak: async (characterId: number, won: boolean): Promise<Streak> => {
-    let streak = await streakService.getCurrentStreak(characterId);
+    await new Promise(resolve => setTimeout(resolve, 1));
+    
+    try {
+      let streak = await streakService.getCurrentStreak(characterId);
 
-    if (won) {
-      if (streak) {
-        streak.streakCount += 1;
-      } else {
-        streak = {
+      if (won) {
+        if (streak) {
+          streak.streakCount += 1;
+        } else {
+          streak = {
+            id: nextStreakId++,
+            characterId,
+            streakCount: 1,
+            isActive: true,
+            startedAt: new Date().toISOString(),
+          };
+          streaks.push(streak);
+        }
+      } else if (streak) {
+        // End the streak
+        streak.isActive = false;
+        streak.endedAt = new Date().toISOString();
+      }
+
+      return (
+        streak || {
           id: nextStreakId++,
           characterId,
-          streakCount: 1,
-          isActive: true,
+          streakCount: 0,
+          isActive: false,
           startedAt: new Date().toISOString(),
-        };
-        streaks.push(streak);
-      }
-    } else if (streak) {
-      // End the streak
-      streak.isActive = false;
-      streak.endedAt = new Date().toISOString();
-    }
-
-    return (
-      streak || {
+          endedAt: new Date().toISOString(),
+        }
+      );
+    } catch (error) {
+      console.warn('Error in updateStreak:', error);
+      return {
         id: nextStreakId++,
         characterId,
         streakCount: 0,
         isActive: false,
         startedAt: new Date().toISOString(),
         endedAt: new Date().toISOString(),
-      }
-    );
+      };
+    }
   },
 
   // Get all active streaks
   getActiveStreaks: async (): Promise<Streak[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1));
     return streaks.filter(
       (streak) => streak.isActive && streak.streakCount > 0
     );
